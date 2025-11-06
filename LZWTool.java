@@ -105,10 +105,11 @@ public class LZWTool {
         L = 1 << W;
 
         TSTmod<Integer> st = new TSTmod<Integer>();
-        Map<Integer, Pair<String, Integer>> counters = new HashMap<>();
+        Map<Integer, Map<String, Integer>> counters = new HashMap<>();
         for (int i = 0; i < R; i++){
             st.put(new StringBuilder(alphabet.get(i)), i);
-            counters.put(i, new Pair(alphabet.get(i), ++time));
+            Map<String, Integer> input = new HashMap<>();
+            counters.put(i, input.put(alphabet.get(i), ++time));
         }
         int code = R+1;  // R is codeword for EOF
 
@@ -129,12 +130,12 @@ public class LZWTool {
         current.append(c);
         Integer codeword = st.get(current);
         //increment counters
-        Pair<String, Integer> pair = counters.get(codeword);
+        Map<String, Integer> pair = counters.get(codeword);
         if(policy.equals("lru")){
-            pair.second = ++time;
+            pair.put(current.toString(), ++time);
         }
         else if(policy.equals("lfu")){
-            pair.second++;
+            pair.put(current.toString(), 1);
         }
         counters.put(codeword, pair);
 
@@ -144,12 +145,12 @@ public class LZWTool {
             c = BinaryStdIn.readChar();
             current.append(c);
             //update counters
-            Pair<String, Integer> p = counters.get(codeword);
+            Map<String, Integer> p = counters.get(codeword);
             if(policy.equals("lru")){
-                p.second = ++time;
+                p.put(current.toString(), ++time);
             }
             else if(policy.equals("lfu")){
-                p.second++;
+                p.put(current.toString(), 1);
             }
             counters.put(codeword, p);
 
@@ -185,32 +186,36 @@ public class LZWTool {
                             int oldest = Integer.MAX_VALUE;
                             int evictCode = -1;
                             for(int i : counters.keySet()){
-                                int t = counters.get(i).second; //gets time
+                                int t = counters.get(i).get(current); //gets time
                                 if (t < oldest || t == oldest && i > evictCode){ //if tie, bigger codeword gets evicted
                                     oldest = t;
                                     evictCode = i;  
                                 }
                             }
-                            String codeString = counters.get(evictCode).first;
+                            String codeString = counters.get(evictCode);
                             st.put(new StringBuilder(codeString), null);
                             st.put(current, evictCode);
-                            counters.put(evictCode, new Pair<>(current.toString(), ++time)); //sets new codeword time counter
+                            Map<String, Integer> input = new HashMap<>();
+                            input.put(current.toString(), ++time);
+                            counters.put(evictCode, input); //sets new codeword time counter
                             break;
                         case "lfu":
                         //evict least frequently used
                             int leastFreq = Integer.MAX_VALUE;
                             int evictC = -1;
                             for(int i : counters.keySet()){
-                                int f = counters.get(i).second; //get frequency
+                                int f = counters.get(i).get(current); //get frequency
                                 if (f < leastFreq || f == leastFreq && i > evictC){
                                     leastFreq = f;
                                     evictC = i;
                                 }
                             }
-                            String codeStr = counters.get(evictC).first;
+                            String codeStr = counters.get(evictC);
                             st.put(new StringBuilder(codeStr), null);
                             st.put(current, evictC);
-                            counters.put(evictC, new Pair<>(current.toString(), 1)); //sets new codeword freq to 1
+                            Map<String, Integer> input = new HashMap<>();
+                            input.put(current.toString(), 1);
+                            counters.put(evictCode, input);
                             break;
                     }
                 }
@@ -266,15 +271,4 @@ public class LZWTool {
         }
         BinaryStdOut.close();
     }
-
-    //nested class to track String codeword and freq/time counters
-    private static class Pair<F, S>{
-        F first;
-        S second;
-        Pair(F first, S second){
-            this.first = first;
-            this.second = second;
-        }
-    }
-
 }
